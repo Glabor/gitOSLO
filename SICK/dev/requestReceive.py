@@ -12,6 +12,9 @@ import os
 from threading import Thread
 import struct
 import pyads
+from influxdb_client import InfluxDBClient, Point, WritePrecision
+from influxdb_client.client.write_api import SYNCHRONOUS
+import subprocess
 
 error=False
 
@@ -29,7 +32,7 @@ def init_sock(begin):
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR,1)
     sock.bind(('', localPort))
     if begin:
-        print("UDP server : {}:{}".format(get_ip_address(),localPort))
+        disp("UDP server : {}:{}".format(get_ip_address(),localPort))
     return sock
 # function get_ip_address 
 def get_ip_address():
@@ -42,19 +45,29 @@ def get_ip_address():
     return ip_address
 
 def disp(msg):
-        print(str(datetime.now())+'\t'+ msg.strip('\r\n'))
+        dispMSG=str(datetime.now())+'\t'+ msg.strip('\r\n')
+        print(dispMSG)
+        with open(f"bin/log.txt", "a") as f:
+            f.write(dispMSG+'\n')
 
-def plc_rot():
+
+def plc_get(varDict):
+    savedVar={}
+    for index in varDict:
+        savedVar[index]=0
     try:
         plc=pyads.Connection('172.19.64.1.1.1', pyads.PORT_TC3PLC1)
         plc.open()
-        k=plc.read_by_name("SNAKE.angle")
+        for index in varDict:
+            var=varDict[index]
+            # print(var)
+            k=plc.read_by_name(var)
+            # disp(f"{var} : {k}")
+            savedVar[index]=k
         plc.close()
-        disp(str(k))
-        return k
     except:
         disp("FAILED connection to pyads")
-        return 0
+    return savedVar
 
 def init_file(date, etrNum):
     d = datetime.fromtimestamp(date) 
@@ -64,8 +77,8 @@ def init_file(date, etrNum):
         disp("file did not exist, creating it....")
         with open(f"bin/raw/{etrNum}/{d.strftime('%Y-%m-%d_%H-%M-%S')}.bin", 'wb') as file:
             file.write(struct.pack('<I', date))
-            file.write(struct.pack('<I', plc_rot())) #starting rotation speed
-            file.write(struct.pack('<I', plc_rot())) #starting angle
+            file.write(struct.pack('<I', int(plc_get({"startSpeed":"S7.fCHRotationSpeed"})["startSpeed"]*100))) #starting rotation speed
+            file.write(struct.pack('<I', int(plc_get({"startAngle":"S7.fCHPosition"})["startAngle"]*100))) #starting angle
 
 # function main 
 def main():
@@ -74,6 +87,7 @@ def main():
     initGot=0
     sock=init_sock(True)
     while True:
+        # machineInflux()
         ready=select.select([sock],[],[],1) #check if there is data waiting
         if ready[0]:
             data, addr = sock.recvfrom(1024) # get data
@@ -81,14 +95,15 @@ def main():
 
             disp("received message: {} from {}\n".format(data,addr))    
             disp(msg)
-            with open(f"bin/log.txt", "a") as f:
-                f.write(str(datetime.now())+'\t'+ msg.strip('\r\n')+"\n")
+            # with open(f"bin/log.txt", "a") as f:
+            #     f.write(str(datetime.now())+'\t'+ msg.strip('\r\n')+"\n")
 
             addr=(msg.split(',')[0],4210) #get address from mthe message received
             sock.connect(addr)
             sock.sendall(b'\x01'+bytes("RPi received OK",'utf-8'))  # answer
             time.sleep(0.5)
 
+            etrierInflux(msg)
             mode=msg.split(',')[-1] #beginning or end of measure
             etrNum=msg.split(',')[1] #system id
             date=int(msg.split(',')[2]) #date of message
@@ -110,6 +125,29 @@ def main():
             sock.close()
             sock=init_sock(False)
             print("")
+
+def etrierInflux(msg):
+    pattern=["ip", "id", "date", "batt", "temp", "avg", "mode"]
+    messDict={}
+    if len(msg.split(','))==len(pattern):
+        for i in range(len(pattern)):
+                messDict[pattern[i]]=msg.split(',')[i]
+        disp(str(messDict))
+
+        token = "TTWOOMWB7Cvetf5puTwgjrGh4i4xxD_aM5eT50gVWP8PgvSiKbcE31JmPfHVIrx0-XWzODSRn_L5221-lvKwzw=="
+        org = "Sensar"
+        bucket = "osloInflux"
+        with InfluxDBClient(url="http://localhost:8086", token=token, org=org) as client:
+            while not(client.ping()):
+                disp("influx disconnected")
+                subprocess.call([r'C:\Users\sensa\Desktop\influx.bat'])
+                time.sleep(1)  
+            write_api = client.write_api(write_options=SYNCHRONOUS)
+            point=Point("etrier")
+            for index in messDict:
+                point=point.field(index,messDict[index])
+            point=point.time(datetime.utcnow(), WritePrecision.S)
+            write_api.write(bucket, org, point)
 
 
 def get_bin(ip, d, etrNum):
@@ -181,8 +219,39 @@ def binToPng(t,date, etrNum):
     disp("png saved")
     return f"bin/plot/{date.strftime('%Y-%m-%d_%H-%M-%S')}.png"
 
+def machineInflux():  
+    while True:
+        try:
+            token = "TTWOOMWB7Cvetf5puTwgjrGh4i4xxD_aM5eT50gVWP8PgvSiKbcE31JmPfHVIrx0-XWzODSRn_L5221-lvKwzw=="
+            org = "Sensar"
+            bucket = "osloInflux"
+            varDict={"TBM.rotSpeed":"S7.fCHRotationSpeed", "PLC.watchdog":"MAIN.watchdog"}
+            savedVar=plc_get(varDict)
+
+            with InfluxDBClient(url="http://localhost:8086", token=token, org=org) as client:
+                while not(client.ping()):
+                    disp("influx disconnected")
+                    subprocess.call([r'C:\Users\sensa\Desktop\influx.bat'])
+                    time.sleep(1)  
+                disp(str(savedVar))
+                write_api = client.write_api(write_options=SYNCHRONOUS)
+                point=Point("machine")
+                for index in savedVar:
+                    # print(index,savedVar[index], type(savedVar[index]))
+                    point=point.field(index,int(savedVar[index]))
+                point=point.time(datetime.utcnow(), WritePrecision.S)
+                write_api.write(bucket, org, point)
+        except:
+            disp("FAILED connection to influx")
+        time.sleep(30)
+
+def boot_machine():
+    worker=Thread(target=machineInflux, name="machineInflux")
+    worker.start()
+    return worker
+    
 def boot_worker():
-    worker=Thread(target=main, name="worker")
+    worker=Thread(target=main, name="main")
     worker.start()
     return worker
 
@@ -197,11 +266,12 @@ def oslopus():
     # begin=True
     # sock=init_sock(begin)
     worker=boot_worker()
+    boot_machine()
     wd=Thread(target=watchdog, args=(worker, boot_worker), daemon=True, name="watchdog")
     wd.start()
     wd.join()
 
 if __name__ == '__main__':
-    os.chdir("C:/Users/sensa/OneDrive/Documents/GLe/OSLO/SICK/dev/")
+    os.chdir("C:/Users/sensa/OneDrive/Documents/GLe/gitOSLO/SICK/dev/")
     print(os.getcwd())
     oslopus()   

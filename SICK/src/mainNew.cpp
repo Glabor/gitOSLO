@@ -21,7 +21,7 @@ String password = "H6{3g897";
 // String ssid = "chgServer";
 // const char *udpAddress = "172.20.10.2";
 // const char *udpAddress = "10.42.0.1";
-const char *udpAddress = "192.168.216.59";
+const char *udpAddress = "192.168.215.50";
 
 WiFiUDP Udp;
 unsigned int localUdpPort = 4210; //  port to listen on
