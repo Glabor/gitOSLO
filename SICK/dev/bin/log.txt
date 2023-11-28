@@ -23837,3 +23837,17 @@ script failed : local variable 'watchdog' referenced before assignment
 2023-11-28 18:29:31.389331	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
 2023-11-28 18:30:01.468475	FAILED connection to pyads
 2023-11-28 18:30:01.553048	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:30:31.655387	FAILED connection to pyads
+2023-11-28 18:30:31.738082	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:31:01.833023	FAILED connection to pyads
+2023-11-28 18:31:01.911106	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:31:32.012737	FAILED connection to pyads
+2023-11-28 18:31:32.086264	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:32:02.188590	FAILED connection to pyads
+2023-11-28 18:32:02.262194	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:32:32.364649	FAILED connection to pyads
+2023-11-28 18:32:32.448185	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:33:02.541496	FAILED connection to pyads
+2023-11-28 18:33:02.626079	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
+2023-11-28 18:33:32.708499	FAILED connection to pyads
+2023-11-28 18:33:32.812212	{'TBM.rotSpeed': 0, 'PLC.watchdog': 0}
