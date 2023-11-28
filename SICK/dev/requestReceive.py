@@ -58,6 +58,13 @@ def plc_get(varDict):
     try:
         plc=pyads.Connection('172.19.64.1.1.1', pyads.PORT_TC3PLC1)
         plc.open()
+
+        s=plc.read_by_name("MAIN.watchdog")
+        time.sleep(0.01)
+        if plc.read_by_name("MAIN.watchdog")==s:
+            disp("ADS stopped running")
+            raise Exception("ADS stopped running")
+        
         for index in varDict:
             var=varDict[index]
             # print(var)
@@ -93,7 +100,7 @@ def main():
             data, addr = sock.recvfrom(1024) # get data
             msg=str(data, 'utf-8')
 
-            disp("received message: {} from {}\n".format(data,addr))    
+            # disp("received message: {} from {}\n".format(data,addr))    
             disp(msg)
             # with open(f"bin/log.txt", "a") as f:
             #     f.write(str(datetime.now())+'\t'+ msg.strip('\r\n')+"\n")
@@ -107,14 +114,14 @@ def main():
             mode=msg.split(',')[-1] #beginning or end of measure
             etrNum=msg.split(',')[1] #system id
             date=int(msg.split(',')[2]) #date of message
-            disp(f"date : {date}, mode {mode}")
+            # disp(f"date : {date}, mode {mode}")
 
             if mode=="0"and initGot!=date:
                 init_file(date, etrNum)
                 initGot=date
                     
             if mode=="1" and binGot!=date:
-                disp("getting bin")
+                # disp("getting bin")
                 init_file(date, etrNum)
                 
                 t, binGot=get_bin(addr[0], date, etrNum) #save binary 
@@ -132,7 +139,7 @@ def etrierInflux(msg):
     if len(msg.split(','))==len(pattern):
         for i in range(len(pattern)):
                 messDict[pattern[i]]=msg.split(',')[i]
-        disp(str(messDict))
+        # disp(str(messDict))
 
         token = "TTWOOMWB7Cvetf5puTwgjrGh4i4xxD_aM5eT50gVWP8PgvSiKbcE31JmPfHVIrx0-XWzODSRn_L5221-lvKwzw=="
         org = "Sensar"
